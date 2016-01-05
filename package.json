@@ -4,6 +4,6 @@
     "dependencies":{
         "express":"4.x",
         "jade":"1.x",
-        "mongodb": "*"
+        "mongodb": "1.4.x"
     }
 }

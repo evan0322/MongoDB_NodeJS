@@ -3,97 +3,77 @@ var http = require('http'),
     path = require('path'),
     MongoClient = require('mongodb').MongoClient,
     assert = require('assert'),
+    Server = require('mongodb').Server,
     ObjectId = require('mongodb').ObjectID,
     CollectionDriver = require('./collectionDriver').CollectionDriver;
 
+//Express settings
 var app = express();
 app.set('port', process.env.PORT || 3000);
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'jade');
 
+
+//Mongo DB settings
+var mongoHost = 'localHost';
+var mongoPort = 27017;
+var collectionDriver;
+var mongoClient = new MongoClient(new Server(mongoHost, mongoPort));
+
+//Mongo DB methods
+mongoClient.open(function(err, mongoClient){
+    if(!mongoClient){
+        console.log('Error, must start mongo db first');
+        process.exit(1);
+    }
+    var db = mongoClient.db("MyDataBase");
+    collectionDriver = new CollectionDriver(db);
+})
+
 app.get('/', function (req, res) {
     res.send('<html><body><h1>Hello World</h1></body></html>');
 });
 
-app.get('/:a/:b', function (req,res) {
-	res.send(req.params.a + ' ' + req.params.b);
-});
+app.get('/:collection',function(req,res){
+    var params = req.params;
+    collectionDriver.findAll(params.collection,function(error,objs){
+        if (error){
+            res.send(400,error);
+        } else{
+            if(req.accepts('html')){
+                res.render('data',{objects:objs, collection: req.params.collection});
+            } else{
+                res.set('Content-Type','application/json');
+                res.send(200, objs);
+            }
+        }
+    })
+})
 
-//app.get('/:a?', function (req,res) {
-//    console.log('request understand');
-//	res.send(req.params.a);
-//});
+app.get('/:collection/:entity',function(req,res){
+    var params = req.params;
+    var entity = params.entity;
+    var collection = params.collection;
+    if(entity){
+        collectionDriver.get(collection,entity,function(error,objs){
+            if(error){
+                res.send(400,error);
+            } else{
+                res.send(200, objs);
+            }
+        })
+    } else{
+        res.send(400,{error:'bad url', url: req.url});
+    }
+})
 
+
+//Express
 app.use(function (req,res) {
     res.render('404', {url:req.url});
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
-
-
-var url = 'mongodb://localhost:27017/test';
-
-
-
-var insertRestaurant = function(db, callback){
-    db.collection('restaurants').insertOne(sampleRestaurant,function(err, result){
-        assert.equal(err,null);
-        console.log("successfully insert data");
-        callback(result);
-    })
-}
-
-var findRestaurants = function(db,callback){
-    var cursor = db.collection('restaurants').find();
-    cursor.each(function(err,doc){
-        assert.equal(err,null);
-        if(doc != null){
-            console.dir(doc);
-        }else{
-            callback();
-        }
-    })
-}
-
-var updateRestaurant = function(db,callback){
-    db.collection('restaurants').updateOne({"name":"test restaurant"},{
-        $set:{
-            "cuisine":"New American",
-            "price":"Low"
-        },
-    },function(err,results){
-        console.log(results);
-        callback();
-    })
-}
-
-var sampleRestaurant = {
-    "address":{
-        "street":"180",
-        "city":"ottawa",
-        "country":"canada"
-    },
-    "name":"test restaurant"
-}
-
-
-MongoClient.connect(url,function(err,db){
-    assert.equal(null,err);
-    console.log('Connected correctly to server');
-
-//    findRestaurants(db,function(){
-//        updateRestaurant(db,function(){
-//            findRestaurants(db,function(){
-//                db.close();
-//            })
-//        })
-//        //db.close;
-//    })
-//    insertRestaurant(db, function(){
-//        db.close();
-//    })
-})
-
 
 http.createServer(app).listen(app.get('port'), function(){
   console.log('Express server listening on port ' + app.get('port'));
