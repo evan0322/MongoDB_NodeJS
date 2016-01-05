@@ -3,6 +3,7 @@
     "verison":"0.0.1",
     "dependencies":{
         "express":"4.x",
-        "jade":"1.x"
+        "jade":"1.x",
+        "mongodb": "*"
     }
 }
